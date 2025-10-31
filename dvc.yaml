@@ -1,0 +1,35 @@
+stages:
+  etl: {cmd: python src/etl.py, deps: [data/raw/], outs: [data/processed/energy_data.parquet]}
+  train: {cmd: python src/train.py, deps: [data/processed/energy_data.parquet], outs: [models/consumption_model.json]}
+
+%%writefile energyglobal/.github/workflows/ci-cd.yml
+name: CI/CD
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with: python-version: '3.9'
+      - run: pip install -r requirements.txt
+      - run: dvc repro
+
+%%writefile energyglobal/Dockerfile
+FROM python:3.9
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0"]
+
+%%writefile energyglobal/requirements.txt
+fastapi
+uvicorn
+streamlit
+xgboost
+scikit-learn
+pandas
+numpy
+dvc[s3]
+mlflow
